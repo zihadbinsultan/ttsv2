@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Neural Text-to-Speech Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #090a0f;
+      --surface: #12151e;
+      --surface-border: #1e2230;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --text: #f3f4f6;
+      --text-muted: #9ca3af;
+      --highlight: rgba(59, 130, 246, 0.25);
+      --highlight-border: #3b82f6;
+      --radius: 10px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      line-height: 1.5;
+      padding: 24px 16px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 900px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 8px;
+    }
+    header h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    header p {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin-top: 4px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .card-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    textarea {
+      width: 100%;
+      height: 120px;
+      background: #0d0f17;
+      border: 1px solid var(--surface-border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.9rem;
+      padding: 12px;
+      resize: vertical;
+      outline: none;
+    }
+    textarea:focus { border-color: var(--accent); }
+
+    .drop-zone {
+      border: 2px dashed var(--surface-border);
+      border-radius: 8px;
+      padding: 24px 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background-color 0.2s;
+    }
+    .drop-zone.dragover {
+      border-color: var(--accent);
+      background: rgba(59, 130, 246, 0.05);
+    }
+    .drop-zone p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .content-viewer {
+      background: #0d0f17;
+      border: 1px solid var(--surface-border);
+      border-radius: 8px;
+      min-height: 140px;
+      max-height: 280px;
+      overflow-y: auto;
+      padding: 16px;
+      font-size: 0.95rem;
+      line-height: 1.8;
+    }
+
+    .sentence {
+      padding: 2px 4px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.15s;
+    }
+    .sentence:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+    .sentence.active {
+      background: var(--highlight);
+      border-bottom: 2px solid var(--highlight-border);
+      color: #fff;
+    }
+    .sentence.buffered {
+      border-left: 2px solid rgba(59, 130, 246, 0.4);
+    }
+
+    .controls-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+    }
+
+    label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+      display: block;
+    }
+
+    select, input[type="range"] {
+      width: 100%;
+      background: #0d0f17;
+      border: 1px solid var(--surface-border);
+      color: var(--text);
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 0.85rem;
+      outline: none;
+    }
+    select:focus { border-color: var(--accent); }
+
+    .button-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-top: 6px;
+    }
+
+    button {
+      background: var(--surface-border);
+      color: var(--text);
+      border: none;
+      padding: 10px 18px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.15s, opacity 0.15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    button:hover:not(:disabled) { background: #282d40; }
+    button.primary {
+      background: var(--accent);
+      color: #fff;
+    }
+    button.primary:hover:not(:disabled) { background: var(--accent-hover); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .progress-bar-container {
+      width: 100%;
+      background: #1e2230;
+      height: 6px;
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 4px;
+      display: none;
+    }
+    .progress-bar {
+      width: 0%;
+      height: 100%;
+      background: var(--accent);
+      transition: width 0.2s;
+    }
+
+    .status-text {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>Neural Speech Studio</h1>
+    <p>Zero-gap streaming human-like speech fully offline</p>
+  </header>
+
+  <section class="card">
+    <div class="card-title">
+      <span>Direct Text & Markdown</span>
+      <span id="stats" class="status-text">0 words, 0 characters</span>
+    </div>
+    <textarea id="raw-text" placeholder="Paste raw text or Markdown content here..."></textarea>
+    
+    <div class="drop-zone" id="drop-zone">
+      <strong>Drop files here or click to browse</strong>
+      <p>Supports .md, .txt, .html</p>
+      <input type="file" id="file-input" accept=".md,.markdown,.txt,.html" style="display: none;">
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-title">
+      <span>Interactive Document Reader</span>
+      <span class="status-text">Click any sentence to jump</span>
+    </div>
+    <div class="content-viewer" id="viewer">
+      <span class="status-text">Document sentences will appear here once loaded.</span>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-title">Audio Engine & Playback</div>
+    
+    <div class="controls-grid">
+      <div>
+        <label for="engine-select">Engine</label>
+        <select id="engine-select">
+          <option value="neural">Neural (Kokoro 82M - Local)</option>
+          <option value="native">Browser Built-in (Instant)</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="voice-select">Voice</label>
+        <select id="voice-select"></select>
+      </div>
+
+      <div>
+        <label for="speed-slider">Speed (<span id="speed-val">1.0</span>x)</label>
+        <input type="range" id="speed-slider" min="0.5" max="2.0" step="0.1" value="1.0">
+      </div>
+    </div>
+
+    <div class="progress-bar-container" id="model-progress-bar">
+      <div class="progress-bar" id="model-progress"></div>
+    </div>
+    <div class="status-text" id="engine-status">Engine ready.</div>
+
+    <div class="button-group">
+      <button id="btn-prev">⏮ Prev</button>
+      <button id="btn-play" class="primary">▶ Play</button>
+      <button id="btn-next">Next ⏭</button>
+      <button id="btn-export">Export Audio (.wav)</button>
+    </div>
+  </section>
+</div>
+
+<audio id="tts-audio-element" style="display:none;"></audio>
+
+<script type="module">
+  import { KokoroTTS } from "https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/dist/kokoro.web.js";
+
+  // State Management
+  let sentences = [];
+  let currentIndex = 0;
+  let isPlaying = false;
+  let kokoroTTS = null;
+  let currentAudioUrl = null;
+  let nativeUtterance = null;
+
+  // Pipeline Buffer Cache: Map<sentenceIndex, Blob>
+  const audioCache = new Map();
+  const prefetchQueue = new Set();
+  let isSynthesizing = false;
+
+  // DOM Elements
+  const rawText = document.getElementById('raw-text');
+  const dropZone = document.getElementById('drop-zone');
+  const fileInput = document.getElementById('file-input');
+  const viewer = document.getElementById('viewer');
+  const stats = document.getElementById('stats');
+  const engineSelect = document.getElementById('engine-select');
+  const voiceSelect = document.getElementById('voice-select');
+  const speedSlider = document.getElementById('speed-slider');
+  const speedVal = document.getElementById('speed-val');
+  const engineStatus = document.getElementById('engine-status');
+  const modelProgressBar = document.getElementById('model-progress-bar');
+  const modelProgress = document.getElementById('model-progress');
+  const btnPlay = document.getElementById('btn-play');
+  const btnPrev = document.getElementById('btn-prev');
+  const btnNext = document.getElementById('btn-next');
+  const btnExport = document.getElementById('btn-export');
+  const audioElement = document.getElementById('tts-audio-element');
+
+  function cleanMarkdown(md) {
+    let t = md.replace(/^---[\s\S]*?---\n*/, '');
+    t = t.replace(/```[\s\S]*?```/g, '');
+    t = t.replace(/`([^`]+)`/g, '$1');
+    t = t.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+    t = t.replace(/!\[([^\]]*)\]\([^)]+\)/g, '');
+    t = t.replace(/^#{1,6}\s+/gm, '');
+    t = t.replace(/^>\s+/gm, '');
+    t = t.replace(/[*_~]{1,3}([^*_~]+)[*_~]{1,3}/g, '$1');
+    t = t.replace(/^[-*+]\s+/gm, '');
+    t = t.replace(/^\d+\.\s+/gm, '');
+    return t.trim();
+  }
+
+  function parseSentences(text) {
+    const raw = cleanMarkdown(text);
+    if (!raw) return [];
+    const matched = raw.match(/[^.!?\n]+[.!?\n]+|[^.!?\n]+$/g) || [];
+    return matched.map(s => s.trim()).filter(s => s.length > 0);
+  }
+
+  function clearAudioCache() {
+    audioCache.forEach(url => {
+      if (typeof url === 'string') URL.revokeObjectURL(url);
+    });
+    audioCache.clear();
+    prefetchQueue.clear();
+  }
+
+  function updateDocumentView() {
+    clearAudioCache();
+    sentences = parseSentences(rawText.value);
+    const words = rawText.value.trim().split(/\s+/).filter(Boolean).length;
+    stats.textContent = `${words} words, ${rawText.value.length} characters`;
+
+    if (sentences.length === 0) {
+      viewer.innerHTML = '<span class="status-text">No text loaded.</span>';
+      return;
+    }
+
+    viewer.innerHTML = sentences
+      .map((s, i) => `<span class="sentence" data-idx="${i}">${s} </span>`)
+      .join('');
+
+    viewer.querySelectorAll('.sentence').forEach(el => {
+      el.addEventListener('click', (e) => {
+        jumpTo(parseInt(e.target.dataset.idx, 10));
+      });
+    });
+
+    highlightActiveSentence();
+  }
+
+  function highlightActiveSentence() {
+    const els = viewer.querySelectorAll('.sentence');
+    els.forEach((el, i) => {
+      el.classList.toggle('active', i === currentIndex);
+      el.classList.toggle('buffered', audioCache.has(i));
+      if (i === currentIndex) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    });
+  }
+
+  const KOKORO_VOICES = [
+    { id: "af_heart", name: "Heart (American Female - Crisp)" },
+    { id: "af_bella", name: "Bella (American Female - Soft)" },
+    { id: "am_adam", name: "Adam (American Male - Deep)" },
+    { id: "am_michael", name: "Michael (American Male - Smooth)" },
+    { id: "bf_emma", name: "Emma (British Female - Expressive)" },
+    { id: "bm_george", name: "George (British Male - Classic)" }
+  ];
+
+  function populateVoices() {
+    voiceSelect.innerHTML = '';
+    if (engineSelect.value === 'neural') {
+      KOKORO_VOICES.forEach(v => {
+        const opt = document.createElement('option');
+        opt.value = v.id;
+        opt.textContent = v.name;
+        voiceSelect.appendChild(opt);
+      });
+    } else {
+      const nativeVoices = window.speechSynthesis.getVoices();
+      nativeVoices.forEach((v, i) => {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = `${v.name} (${v.lang})`;
+        voiceSelect.appendChild(opt);
+      });
+    }
+  }
+
+  async function initNeuralEngine() {
+    if (kokoroTTS) return true;
+    engineStatus.textContent = "Loading Kokoro neural weights...";
+    modelProgressBar.style.display = "block";
+    btnPlay.disabled = true;
+
+    try {
+      const hasWebGPU = typeof navigator !== 'undefined' && 'gpu' in navigator;
+      const device = hasWebGPU ? "webgpu" : "wasm";
+      const dtype = hasWebGPU ? "fp32" : "q8";
+
+      kokoroTTS = await KokoroTTS.from_pretrained("onnx-community/Kokoro-82M-v1.0-ONNX", {
+        dtype: dtype,
+        device: device,
+        progress_callback: (p) => {
+          if (p.status === 'progress' && p.total) {
+            const pct = Math.round((p.loaded / p.total) * 100);
+            modelProgress.style.width = `${pct}%`;
+            engineStatus.textContent = `Downloading model: ${pct}%`;
+          }
+        }
+      });
+
+      modelProgressBar.style.display = "none";
+      engineStatus.textContent = `Ready (${device.toUpperCase()}). Cached locally.`;
+      return true;
+    } catch (err) {
+      console.warn("Retrying with WASM fallback...", err);
+      try {
+        kokoroTTS = await KokoroTTS.from_pretrained("onnx-community/Kokoro-82M-v1.0-ONNX", {
+          dtype: "q8",
+          device: "wasm"
+        });
+        modelProgressBar.style.display = "none";
+        engineStatus.textContent = "Ready (WASM fallback). Cached locally.";
+        return true;
+      } catch (fallbackErr) {
+        console.error("Neural init error:", fallbackErr);
+        modelProgressBar.style.display = "none";
+        engineStatus.textContent = "Neural init failed. Using Native engine.";
+        engineSelect.value = "native";
+        populateVoices();
+        return false;
+      }
+    } finally {
+      btnPlay.disabled = false;
+    }
+  }
+
+  // Pre-fetching Background Pipeline (Pipelines upcoming sentences)
+  async function generateAudioForIndex(idx) {
+    if (idx < 0 || idx >= sentences.length || audioCache.has(idx) || prefetchQueue.has(idx)) {
+      return;
+    }
+
+    prefetchQueue.add(idx);
+    try {
+      const voice = voiceSelect.value || "af_heart";
+      const result = await kokoroTTS.generate(sentences[idx], { voice });
+      const wav = result.toWav();
+      const blob = wav instanceof Blob ? wav : new Blob([wav], { type: 'audio/wav' });
+      const url = URL.createObjectURL(blob);
+      audioCache.set(idx, url);
+      
+      // Update UI indicator to show this sentence is buffered
+      const el = viewer.querySelector(`.sentence[data-idx="${idx}"]`);
+      if (el) el.classList.add('buffered');
+    } catch (e) {
+      console.error(`Failed to prefetch sentence ${idx}:`, e);
+    } finally {
+      prefetchQueue.delete(idx);
+    }
+  }
+
+  async function triggerPrefetchLookahead() {
+    if (isSynthesizing || !kokoroTTS || engineSelect.value !== 'neural') return;
+    isSynthesizing = true;
+
+    // Buffer current + next 2 sentences in the background
+    for (let offset = 0; offset <= 2; offset++) {
+      const target = currentIndex + offset;
+      if (target < sentences.length && !audioCache.has(target)) {
+        await generateAudioForIndex(target);
+      }
+    }
+
+    isSynthesizing = false;
+  }
+
+  // Playback Loop
+  async function playCurrentSentence() {
+    if (sentences.length === 0) {
+      updateDocumentView();
+      if (sentences.length === 0) {
+        alert("Please paste or upload some text first.");
+        return;
+      }
+    }
+
+    if (currentIndex >= sentences.length) {
+      stopPlayback();
+      currentIndex = 0;
+      return;
+    }
+
+    isPlaying = true;
+    btnPlay.textContent = "⏸ Pause";
+    highlightActiveSentence();
+    const speed = parseFloat(speedSlider.value);
+
+    if (engineSelect.value === 'neural') {
+      if (!kokoroTTS) {
+        const ready = await initNeuralEngine();
+        if (!ready) return;
+      }
+
+      // If the current sentence isn't buffered yet, synthesize it immediately
+      if (!audioCache.has(currentIndex)) {
+        engineStatus.textContent = `Buffering sentence ${currentIndex + 1}...`;
+        await generateAudioForIndex(currentIndex);
+      }
+
+      // Trigger background prefetch for upcoming sentences immediately
+      triggerPrefetchLookahead();
+
+      const audioUrl = audioCache.get(currentIndex);
+      if (!audioUrl) {
+        engineStatus.textContent = "Playback error, skipping...";
+        currentIndex++;
+        playCurrentSentence();
+        return;
+      }
+
+      audioElement.src = audioUrl;
+      audioElement.playbackRate = speed;
+
+      audioElement.onended = () => {
+        if (isPlaying) {
+          currentIndex++;
+          playCurrentSentence(); // Since next sentence is already in cache, plays instantly!
+        }
+      };
+
+      audioElement.onerror = (e) => {
+        console.error("Audio error:", e);
+        stopPlayback();
+      };
+
+      await audioElement.play();
+      engineStatus.textContent = `Playing sentence ${currentIndex + 1} of ${sentences.length}`;
+    } else {
+      // Native SpeechSynthesis fallback
+      window.speechSynthesis.cancel();
+      nativeUtterance = new SpeechSynthesisUtterance(sentences[currentIndex]);
+      const nativeVoices = window.speechSynthesis.getVoices();
+      if (nativeVoices[voiceSelect.value]) {
+        nativeUtterance.voice = nativeVoices[voiceSelect.value];
+      }
+      nativeUtterance.rate = speed;
+      nativeUtterance.onend = () => {
+        if (isPlaying) {
+          currentIndex++;
+          playCurrentSentence();
+        }
+      };
+      nativeUtterance.onerror = () => stopPlayback();
+      window.speechSynthesis.speak(nativeUtterance);
+      engineStatus.textContent = `Playing sentence ${currentIndex + 1} of ${sentences.length}`;
+    }
+  }
+
+  function stopPlayback() {
+    isPlaying = false;
+    btnPlay.textContent = "▶ Play";
+    audioElement.pause();
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+  }
+
+  function jumpTo(index) {
+    stopPlayback();
+    currentIndex = Math.max(0, Math.min(index, sentences.length - 1));
+    highlightActiveSentence();
+    playCurrentSentence();
+  }
+
+  // Keyboard Shortcuts
+  window.addEventListener('keydown', (e) => {
+    if (['TEXTAREA', 'INPUT'].includes(e.target.tagName)) return;
+    if (e.code === 'Space') {
+      e.preventDefault();
+      if (isPlaying) stopPlayback();
+      else playCurrentSentence();
+    } else if (e.code === 'ArrowRight') {
+      e.preventDefault();
+      jumpTo(currentIndex + 1);
+    } else if (e.code === 'ArrowLeft') {
+      e.preventDefault();
+      jumpTo(currentIndex - 1);
+    }
+  });
+
+  // Audio Export
+  btnExport.addEventListener('click', async () => {
+    if (sentences.length === 0) {
+      alert("Load text first before exporting.");
+      return;
+    }
+    if (engineSelect.value !== 'neural') {
+      alert("Export is supported with the Neural engine.");
+      return;
+    }
+
+    stopPlayback();
+    if (!kokoroTTS) await initNeuralEngine();
+
+    engineStatus.textContent = "Exporting audio (synthesizing missing segments)...";
+    try {
+      const fullText = sentences.join(' ');
+      const fullAudio = await kokoroTTS.generate(fullText, {
+        voice: voiceSelect.value || "af_heart"
+      });
+      const wav = fullAudio.toWav();
+      const blob = wav instanceof Blob ? wav : new Blob([wav], { type: 'audio/wav' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = "speech-export.wav";
+      a.click();
+      URL.revokeObjectURL(url);
+      engineStatus.textContent = "Audio exported successfully!";
+    } catch (err) {
+      console.error(err);
+      engineStatus.textContent = "Export failed.";
+    }
+  });
+
+  // Drag & drop / File input
+  dropZone.addEventListener('click', () => fileInput.click());
+  dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+  });
+  fileInput.addEventListener('change', (e) => {
+    if (e.target.files.length) handleFile(e.target.files[0]);
+  });
+
+  function handleFile(file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      rawText.value = e.target.result;
+      currentIndex = 0;
+      updateDocumentView();
+    };
+    reader.readAsText(file);
+  }
+
+  // Event Listeners
+  rawText.addEventListener('input', () => {
+    currentIndex = 0;
+    updateDocumentView();
+  });
+
+  speedSlider.addEventListener('input', (e) => {
+    speedVal.textContent = e.target.value;
+  });
+
+  voiceSelect.addEventListener('change', () => {
+    clearAudioCache();
+    viewer.querySelectorAll('.sentence').forEach(el => el.classList.remove('buffered'));
+  });
+
+  engineSelect.addEventListener('change', () => {
+    stopPlayback();
+    clearAudioCache();
+    populateVoices();
+  });
+
+  btnPlay.addEventListener('click', () => {
+    if (isPlaying) stopPlayback();
+    else playCurrentSentence();
+  });
+
+  btnPrev.addEventListener('click', () => jumpTo(currentIndex - 1));
+  btnNext.addEventListener('click', () => jumpTo(currentIndex + 1));
+
+  if (window.speechSynthesis) {
+    window.speechSynthesis.onvoiceschanged = () => {
+      if (engineSelect.value === 'native') populateVoices();
+    };
+  }
+  populateVoices();
+</script>
+</body>
+</html>
